@@ -318,35 +318,30 @@ async def invoke(payload, context=None):
       session_id  (str, optional) — session identifier; generated if absent
     """
 
-    try:
-        user_input = payload.get("prompt", "Hi!")
-        actor_id     = payload.get("customer_id", "actor_id")
-        session_id = payload.get("session_id", str(uuid.uuid4())) #Confirm that this is correct and not context.session_id
+    user_input = payload.get("prompt", "Hi!")
+    actor_id     = payload.get("customer_id", "actor_id")
+    session_id = payload.get("session_id", str(uuid.uuid4())) #Confirm that this is correct and not context.session_id
 
-        memory_hook = MemoryHook(actor_id=actor_id, session_id=session_id, memory_client=memory_client, memory_id=MEMORY_ID)
-        agent_core_browser = AgentCoreBrowser(session_timeout=600)
+    memory_hook = MemoryHook(actor_id=actor_id, session_id=session_id, memory_client=memory_client, memory_id=MEMORY_ID)
+    agent_core_browser = AgentCoreBrowser(session_timeout=600)
 
-        client = MCPClient(
-            lambda: streamable_http_client(url=GATEWAY_URL)
+    client = MCPClient(
+        lambda: streamable_http_client(url=GATEWAY_URL)
+    )
+    with client:
+        tools = client.list_tools_sync()
+        logger.info("Tool names: %s", [t.tool_name for t in tools])
+        logger.info("Discovered %d tools from Gateway", len(tools))
+
+        agent = Agent(
+            model=model,
+            system_prompt=SYSTEM_PROMPT,
+            tools=[agent_core_browser.browser, search_knowledge_base, calculate_loyalty_discount, tools],
+            state={"session_id": session_id, "actor_id": actor_id},
+            hooks=[memory_hook],
         )
-        with client:
-            tools = client.list_tools_sync()
-            logger.info("Tool names: %s", [t.tool_name for t in tools])
-            logger.info("Discovered %d tools from Gateway", len(tools))
-
-            agent = Agent(
-                model=model,
-                system_prompt=SYSTEM_PROMPT,
-                tools=[agent_core_browser.browser, search_knowledge_base, calculate_loyalty_discount, tools],
-                state={"session_id": session_id, "actor_id": actor_id},
-                hooks=[memory_hook],
-            )
-            response = agent(user_input)
-        return response
-
-    except Exception as e:
-        logger.error(e)
-        return "Sorry, something went wrong. Please try again later."
+        response = agent(user_input)
+    return response
     
 # ── CLI entry point (do not modify) ──────────────────────────────────────────
 def main():
@@ -359,6 +354,6 @@ def main():
 
 
 if __name__ == "__main__":
-    # app.run()
+    app.run()
     # Uncomment the line below and comment app.run() for local CLI testing:
-    main()
+    # main()
