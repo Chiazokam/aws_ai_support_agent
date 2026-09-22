@@ -321,9 +321,9 @@ async def invoke(payload, context=None):
     try:
         user_input = payload.get("prompt", "Hi!")
         actor_id     = payload.get("customer_id", "actor_id")
-        session_id   = payload.get("session_id", uuid()) #Confirm that this is correct and not context.session_id
+        session_id = payload.get("session_id", str(uuid.uuid4())) #Confirm that this is correct and not context.session_id
 
-        memory_hook = MemoryHook(memory_client=memory_client, memory_id=MEMORY_ID)
+        memory_hook = MemoryHook(actor_id=actor_id, session_id=session_id, memory_client=memory_client, memory_id=MEMORY_ID)
         agent_core_browser = AgentCoreBrowser(session_timeout=600)
 
         client = MCPClient(
