@@ -63,17 +63,13 @@ MEMORY-AWARE BEHAVIOUR
 - Use this context to personalise your recommendations naturally.
 - Reference past context: "Based on your last order, I think you might like..."
 
-
 You have access to the calculate_loyalty_discount tool, which runs exact arithmetic inside
 a secure, isolated Python sandbox via the AgentCore Code Interpreter.
 
 USE calculate_loyalty_discount WHENEVER a customer asks about discount.
+Never estimate or guess numbers yourself. When asked about discounts, always run calculate_loyalty_discount to compute the final result. Present the final result clearly as a string with a brief explanation.
 
-Always write a short Python script that computes the answer and returns the final result as a string. 
-Never estimate or guess numbers yourself. Present the result clearly with a brief explanation.
-
-
-When a customer asks about a destination, navigate to the url that is provided in the input:
+When a customer asks about a destination, navigate to the url that is provided in the user input:
 """
 
 def get_namespaces(mem_client: MemoryClient, memory_id: str) -> Dict:
