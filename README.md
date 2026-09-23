@@ -28,5 +28,5 @@
  I was able to pick the cause of these errors by visiting the logs on cloudwatch. I could then tell that some access was being denied. This I was able to handle when I saw that the starter repo had been updated with the `setup_permissions.py` file.
 
  - ##### Production Consideration
- To extend this project for production, I would script all the resource provisioning processes, so that it would be easy to start up the agent or even replicate it if there is a need.
- 
+ To extend this project for production, I would integrate AWS guradrails into the system for security purposes. I would need to make sure that the agent is used only for the purpose which it was created for and that it can detect when it's prompted to break into the system.
+ A specific example would be when it is prompted to ignore all its previous instructions to take in a new instruction or when it's prompted to release customer data.
