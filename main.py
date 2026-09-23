@@ -1,20 +1,6 @@
 """
 Customer Support AI Agent — Starter Code
 ==========================================
-Your task is to complete this file by implementing all sections marked
-with # TODO comments.
-
-Reference the step-by-step solution files and INSTRUCTIONS.md for guidance.
-Do NOT copy the solution directly — work through each section yourself.
-
-Run locally (after filling in config values):
-  uv run main.py '{"prompt": "Hello", "customer_id": "CUST-123", "session_id": "s1"}'
-
-Deploy to AgentCore:
-  agentcore deploy
-
-Invoke deployed agent:
-  agentcore invoke '{"prompt": "Hello", "customer_id": "CUST-123", "session_id": "s1"}'
 """
 
 # ── Imports ───────────────────────────────────────────────────────────────────
@@ -188,7 +174,7 @@ class MemoryHook(HookProvider):
         except Exception as exc:
             logger.error("Failed to save interaction: %s", exc)
 
-    def register_hooks(self, registry: HookRegistry) -> None:  # type: ignore
+    def register_hooks(self, registry: HookRegistry) -> None:
         """Register both memory callbacks."""
         registry.add_callback(MessageAddedEvent, self.retrieve_customer_context)
         registry.add_callback(AfterInvocationEvent, self.save_support_interaction)
@@ -319,7 +305,7 @@ async def invoke(payload, context=None):
 
     user_input = payload.get("prompt", "Hi!")
     actor_id     = payload.get("customer_id", "actor_id")
-    session_id = payload.get("session_id", str(uuid.uuid4())) #Confirm that this is correct and not context.session_id
+    session_id = payload.get("session_id", str(uuid.uuid4()))
 
     memory_hook = MemoryHook(actor_id=actor_id, session_id=session_id, memory_client=memory_client, memory_id=MEMORY_ID)
     agent_core_browser = AgentCoreBrowser(session_timeout=600)
