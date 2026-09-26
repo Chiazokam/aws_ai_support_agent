@@ -32,10 +32,10 @@ app = BedrockAgentCoreApp()
 # Suppress interactive tool-consent prompts (required in headless deployments).
 os.environ["BYPASS_TOOL_CONSENT"] = "true"
 
-GATEWAY_URL = "https://customersupportgateway-g7f0zg4y4a.gateway.bedrock-agentcore.us-east-1.amazonaws.com/mcp"
-KB_ID       = "EOVVNSYLJ3"
+GATEWAY_URL = "https://customersupportgateway-sik2fyhdv3.gateway.bedrock-agentcore.us-east-1.amazonaws.com/mcp"
+KB_ID       = "ZHP2LLQVQM"
 REGION      = "us-east-1"
-MEMORY_ID   = "CustomerSupportMemory-u35T8r7vrn"
+MEMORY_ID   = "CustomerSupportMemory-GebTg9DkP6"
 
 model_id = "global.amazon.nova-2-lite-v1:0"
 
@@ -67,7 +67,7 @@ You have access to the calculate_loyalty_discount tool, which runs exact arithme
 a secure, isolated Python sandbox via the AgentCore Code Interpreter.
 
 USE calculate_loyalty_discount WHENEVER a customer asks about discount.
-Never estimate or guess numbers yourself. When asked about discounts, always run calculate_loyalty_discount to compute the final result. Present the final result clearly as a string with a brief explanation.
+Never estimate or guess numbers yourself. When asked about discounts, always run calculate_loyalty_discount to compute the final result. Present the final result with all the fields clearly as a string with a brief explanation.
 
 When a customer asks about a destination, navigate to the url that is provided in the user input:
 """
@@ -250,7 +250,7 @@ remaining_points = loyalty_points - points_redeemed_rounded + points_earned
 import json
 result = {{
     "points_redeemed": points_redeemed_rounded,
-    "tier_discount": round(tier_discount, 2),
+    "tier_discount_pct": round(tier_discount, 2),
     "final_total": round(final_total, 2),
     "total_savings": round(total_savings, 2),
     "points_earned": points_earned,
@@ -279,7 +279,7 @@ print(json.dumps(result))
         import json
         result = {
             "points_redeemed": 0,
-            "tier_discount": round(tier_discount, 2),
+            "tier_discount_pct": round(tier_discount, 2),
             "final_total": round(final_total, 2),
             "total_savings": round(tier_discount, 2),
             "points_earned": 0,
@@ -304,25 +304,52 @@ async def invoke(payload, context=None):
     session_id = payload.get("session_id", str(uuid.uuid4()))
 
     memory_hook = MemoryHook(actor_id=actor_id, session_id=session_id, memory_client=memory_client, memory_id=MEMORY_ID)
-    agent_core_browser = AgentCoreBrowser(session_timeout=600)
+    agent_core_browser = AgentCoreBrowser(session_timeout=600, region=REGION)
 
-    client = MCPClient(
-        lambda: streamable_http_client(url=GATEWAY_URL)
-    )
-    with client:
-        tools = client.list_tools_sync()
-        logger.info("Tool names: %s", [t.tool_name for t in tools])
-        logger.info("Discovered %d tools from Gateway", len(tools))
-
-        agent = Agent(
-            model=model,
-            system_prompt=SYSTEM_PROMPT,
-            tools=[agent_core_browser.browser, search_knowledge_base, calculate_loyalty_discount, tools],
-            state={"session_id": session_id, "actor_id": actor_id},
-            hooks=[memory_hook],
+    try:
+        client = MCPClient(
+            lambda: streamable_http_client(url=GATEWAY_URL)
         )
-        response = agent(user_input)
-    return response
+        with client:
+            try:
+                tools = client.list_tools_sync()
+                logger.info("Tool names: %s", [t.tool_name for t in tools])
+                logger.info("Discovered %d tools from Gateway", len(tools))
+            except Exception as exc:
+                logger.error("Failed to list tools from Gateway: %s", exc)
+                return {
+                    "error": "Tool discovery failed",
+                    "message": f"Could not retrieve tools from the AgentCore Gateway: {exc}. Check Gateway URL and network connectivity, then retry.",
+                }
+
+            try:
+                agent = Agent(
+                    model=model,
+                    system_prompt=SYSTEM_PROMPT,
+                    tools=[agent_core_browser.browser, search_knowledge_base, calculate_loyalty_discount, tools],
+                    state={"session_id": session_id, "actor_id": actor_id},
+                    hooks=[memory_hook],
+                )
+                response = agent(user_input)
+            except Exception as exc:
+                logger.error("Agent invocation failed: %s", exc)
+                return {
+                    "error": "Agent invocation failed",
+                    "message": f"The agent could not complete the request: {exc}. Retry the request. If the problem persists, check tool configuration and model access.",
+                }
+            return response
+    except (ConnectionError, TimeoutError) as exc:
+        logger.error("Gateway connection failed: %s", exc)
+        return {
+            "error": "Gateway connection failed",
+            "message": f"Could not connect to the AgentCore Gateway at {GATEWAY_URL}: {exc}. Verify the Gateway URL and network connectivity, then retry.",
+        }
+    except Exception as exc:
+        logger.error("Unexpected error during Gateway call: %s", exc)
+        return {
+            "error": "Unexpected error",
+            "message": f"An unexpected error occurred: {exc}. Retry the request. If the problem persists, check the configuration and logs.",
+        }
     
 # ── CLI entry point (do not modify) ──────────────────────────────────────────
 def main():
